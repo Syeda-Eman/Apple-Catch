@@ -24,13 +24,14 @@
 
 <canvas id="gameCanvas"></canvas>
 <script>
-const canvas = document.getElementById|("gameCanvas");
+const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 let score=0;
-let live = 3;
+let lives = 3;
 let gameOver = false;
 let gameInterval;
 let timerInterval;
+let timeLeft = 30;
 const basketImg = new Image();
 basketImg.src = "apple-Photoroom.png";
 const goodAppleImg = new Image();
@@ -57,7 +58,7 @@ function resizeCanvas() {
     }
 }
 window.addEventListener('resize', resizeCanvas);
-recizeCanvas();
+resizeCanvas();
 window.addEventListener("mousemove", (e)=> {
     basket.x = e.clientX - basket.width/2;
     if (basket.x < 0) basket.x = 0;
@@ -88,9 +89,9 @@ function update(){
         let a = apples[i];
         a.y += a.speed;
         if (a.y + appleSize >= basket.y &&
-            a.y <= basket.y + baket.height &&
+            a.y <= basket.y + basket.height &&
             a.x + appleSize >= basket.x &&
-            a.x <= baket.x + basket.width){
+            a.x <= basket.x + basket.width){
             if (a.type === 'good'){
                 score++;
             } else {
@@ -123,7 +124,7 @@ function draw(){
     ctx.font = "bold 28px sans-serif";
     ctx.fillText(`Score: ${score}`, 30, 50);
     ctx.fillText(`Lives: ${"❤️".repeat(Math.max(0, lives))}`, 30, 95);
-    ctx.fillText(`Time Left: ${timmLeft}s`, canvas.width, canvas.width - 220, 50);
+    ctx.fillText(`Time Left: ${timeLeft}s`, canvas.width - 220, 50);
 
     if (gameOver) {
         ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
@@ -179,16 +180,7 @@ function resetGame() {
     clearInterval(timerInterval);
     startTimer();
 }
-function resetGame(){
-    score = 0;
-    lives= 3;
-    timeLeft=30;
-    apples.length=0;
-    spawnTimer=0;
-    gameOver=false;
-    clearInterval(timerInterval);
-    startTimer();
-}
+
 function tick() {
     update();
     draw();
