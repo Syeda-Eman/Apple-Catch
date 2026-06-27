@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Apple Catch</title>
+    <title>Fruit Catch Game</title>
     <style>
-        body, html{
+        body, html {
             margin: 0;
             padding: 0;
             width: 100%;
@@ -14,7 +14,7 @@
             background: #7dd3fc;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
-        canvas{
+        canvas {
             display: block;
             cursor: none;
         }
@@ -23,22 +23,46 @@
 <body>
 
 <canvas id="gameCanvas"></canvas>
+
 <script>
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
-let score=0;
+
+// Game State
+let score = 0;
 let lives = 3;
-let gameOver = false;
-let gameInterval;
-let timerInterval;
 let timeLeft = 30;
+let gameOver = false;
+let timerInterval;
+
+// Player Basket Asset
 const basketImg = new Image();
 basketImg.src = "apple-Photoroom.png";
-const goodAppleImg = new Image();
-goodAppleImg.src="good apple-Photoroom.png";
-const badAppleImg = new Image();
-badAppleImg.src = "bad apple-Photoroom.png";
-const appleSize = 110;
+
+// Threat Hazard Asset
+const bombImg = new Image();
+bombImg.src = "bomb.png";
+
+// Good Fruit Asset Pool
+const fruitFiles = [
+    "good apple-Photoroom.png",
+    "dragon fruit.png",
+    "banana.png",
+    "guava.png",
+    "grapes.png",
+    "strawberry.png",
+    "watermelon.png"
+];
+
+// Preload fruit images into an array for easy random selection
+const fruitImages = fruitFiles.map(file => {
+    const img = new Image();
+    img.src = file;
+    return img;
+});
+
+// Dimensions & Physics Configuration
+const itemSize = 110; 
 const basket = {
     x: 0,
     y: 0,
@@ -46,86 +70,122 @@ const basket = {
     height: 110
 };
 
-const apples = [];
+const fallingItems = [];
 let spawnTimer = 0;
-let spawnRate = 40;
+let spawnRate = 40; 
+
+// Scale viewport dynamically
 function resizeCanvas() {
-    canvas.width= window.innerWidth;
+    canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
-    basket.y = canvas.height -150;
-    if (basket.x > canvas.width - basket.width){
+    basket.y = canvas.height - 150; 
+    
+    if (basket.x > canvas.width - basket.width) {
         basket.x = canvas.width - basket.width;
     }
 }
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
-window.addEventListener("mousemove", (e)=> {
-    basket.x = e.clientX - basket.width/2;
+
+// Controls
+window.addEventListener("mousemove", (e) => {
+    basket.x = e.clientX - basket.width / 2;
+    
     if (basket.x < 0) basket.x = 0;
     if (basket.x > canvas.width - basket.width) basket.x = canvas.width - basket.width;
 });
-window.addEventListener("click",()=>{
-    if(gameOver){
-        resetGame();
-    }
+
+window.addEventListener("click", () => {
+    if (gameOver) resetGame();
 });
-function spawnApple(){
-    const isGood = Math.random()>0.4;
-    apples.push({
-        x: Math.random()*(canvas.width-appleSize),
-        y: -appleSize,
-        type: isGood ? 'good':'bad',
-        speed: 4+Math.random()*4
+
+function spawnItem() {
+    const isBomb = Math.random() < 0.35; // 35% chance of spawning a bomb hazard
+    let itemImage;
+    let itemType;
+
+    if (isBomb) {
+        itemType = 'bomb';
+        itemImage = bombImg;
+    } else {
+        itemType = 'fruit';
+        // Grab a random fruit asset from our preloaded selection
+        itemImage = fruitImages[Math.floor(Math.random() * fruitImages.length)];
+    }
+
+    fallingItems.push({
+        x: Math.random() * (canvas.width - itemSize),
+        y: -itemSize,
+        type: itemType,
+        img: itemImage,
+        speed: 4 + Math.random() * 4
     });
 }
-function update(){
+
+function update() {
     if (gameOver) return;
+
     spawnTimer++;
-    if(spawnTimer >= spawnRate){
-        spawnApple();
-        spawnTimer=0;
+    if (spawnTimer >= spawnRate) {
+        spawnItem();
+        spawnTimer = 0;
     }
-    for (let i= apples.length-1; i>=0; i--){
-        let a = apples[i];
-        a.y += a.speed;
-        if (a.y + appleSize >= basket.y &&
-            a.y <= basket.y + basket.height &&
-            a.x + appleSize >= basket.x &&
-            a.x <= basket.x + basket.width){
-            if (a.type === 'good'){
+
+    // Step backwards through loop to safely handle splicing during runtime
+    for (let i = fallingItems.length - 1; i >= 0; i--) {
+        let item = fallingItems[i];
+        item.y += item.speed;
+
+        // Collision checking with basket bounds
+        if (item.y + itemSize >= basket.y &&
+            item.y <= basket.y + basket.height &&
+            item.x + itemSize >= basket.x &&
+            item.x <= basket.x + basket.width) {
+            
+            if (item.type === 'fruit') {
                 score++;
             } else {
-                lives--;
+                lives--; // Bomb hit costs a life
             }
-            apples.splice(i, 1);
+            fallingItems.splice(i, 1);
             checkGameOver();
             continue;
         }
-        if (a.y > canvas.height){
-            if (a.type === 'good'){
-                lives--;
+
+        // Out of bounds checking (missed items hitting the ground)
+        if (item.y > canvas.height) {
+            if (item.type === 'fruit') {
+                lives--; // Only penalize missing good fruits, let bombs pass safely
             }
-            apples.splice(i, 1);
+            fallingItems.splice(i, 1);
             checkGameOver();
         }
     }
 }
-function draw(){
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = "#4ade80";
-    ctx.fillRect(0, canvas.height -60, canvas.width, 60);
 
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Decorative ground floor
+    ctx.fillStyle = "#4ade80";
+    ctx.fillRect(0, canvas.height - 60, canvas.width, 60);
+
+    // Render player
     ctx.drawImage(basketImg, basket.x, basket.y, basket.width, basket.height);
-    apples.forEach(a=>{
-        const img = (a.type==='good')? goodAppleImg: badAppleImg;
-        ctx.drawImage(img, a.x, a.y, appleSize, appleSize);
+    
+    // Render dynamic entities
+    fallingItems.forEach(item => {
+        ctx.drawImage(item.img, item.x, item.y, itemSize, itemSize);
     });
-    ctx.fillStyle="#0f172a";
+
+    // Heads Up Display
+    ctx.fillStyle = "#0f172a";
     ctx.font = "bold 28px sans-serif";
     ctx.fillText(`Score: ${score}`, 30, 50);
     ctx.fillText(`Lives: ${"❤️".repeat(Math.max(0, lives))}`, 30, 95);
     ctx.fillText(`Time Left: ${timeLeft}s`, canvas.width - 220, 50);
 
+    // Game Over Overlay
     if (gameOver) {
         ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -134,24 +194,20 @@ function draw(){
         ctx.font = "bold 50px sans-serif";
         ctx.textAlign = "center";
 
-        if (lives <= 0) {
-            ctx.fillText("Game Over!", canvas.width / 2, canvas.height / 2 - 30);
-        } else {
-            ctx.fillText("Time's Up!", canvas.width / 2, canvas.height / 2 - 30);
-        }
+        const message = (lives <= 0) ? "Game Over!" : "Time's Up!";
+        ctx.fillText(message, canvas.width / 2, canvas.height / 2 - 30);
 
         ctx.font = "30px sans-serif";
         ctx.fillText(`Final Score: ${score}`, canvas.width / 2, canvas.height / 2 + 30);
+        
         ctx.fillStyle = "#38bdf8";
-        ctx.fillText("Click Anywhere to play Again", canvas.width / 2, canvas.height / 2 + 90);
-        ctx.textAlign = "left";
+        ctx.fillText("Click Anywhere to Play Again", canvas.width / 2, canvas.height / 2 + 90);
+        ctx.textAlign = "left"; 
     }
 }
 
-function checkGameOver () {
-    if (lives <= 0) {
-        endGame();
-    }
+function checkGameOver() {
+    if (lives <= 0) endGame();
 }
 
 function endGame() {
@@ -163,9 +219,7 @@ function startTimer() {
     timerInterval = setInterval(() => {
         if (!gameOver) {
             timeLeft--;
-            if (timeLeft <= 0) {
-                endGame();
-            }
+            if (timeLeft <= 0) endGame();
         }
     }, 1000);
 }
@@ -174,18 +228,21 @@ function resetGame() {
     score = 0;
     lives = 3;
     timeLeft = 30;
-    apples.length = 0;
+    fallingItems.length = 0;
     spawnTimer = 0;
     gameOver = false;
     clearInterval(timerInterval);
     startTimer();
 }
 
+// Engine Loop
 function tick() {
     update();
     draw();
     requestAnimationFrame(tick);
 }
+
+// Initialization Entry Points
 startTimer();
 tick();
 </script>
